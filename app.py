@@ -12,7 +12,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-APP_VERSION = "v0.1"
+APP_VERSION = "v0.2"
 DATA_DIR = Path("data")
 SETTINGS_PATH = DATA_DIR / "settings.json"
 QUOTES_PATH = DATA_DIR / "quotes.json"
@@ -259,6 +259,133 @@ def quote_one(inputs: Dict[str, Any], settings: Dict[str, Any], plazo: int) -> D
         "cashflows_unit": cfs,
     }
 
+
+def amortization_schedule(inputs: Dict[str, Any], settings: Dict[str, Any], plazo: int) -> pd.DataFrame:
+    """Tabla mensual de amortización y rentabilidad por operación total."""
+    units = int(inputs["numero_equipos"])
+    fx = float(inputs["tc_usd"])
+    unit_value = (float(inputs["precio_usd_sin_iva"]) + float(inputs.get("accesorios_usd", 0) or 0)) * fx
+    asset_total = unit_value * units
+
+    enganche_total = asset_total * float(inputs["enganche_pct"])
+    pv_cliente_total = asset_total - enganche_total
+    residual_cliente_total = asset_total * float(inputs["residual_cliente_pct"])
+    residual_fondeador_total = asset_total * float(inputs["residual_fondeador_pct"])
+    valor_venta_cliente_total = asset_total * float(inputs["valor_venta_cliente_pct"])
+
+    tasa_cliente_m = float(inputs["tasa_cliente_nominal_pct"]) / 12
+    tasa_fondeo_m = float(inputs["costo_fondeo_nominal_pct"]) / 12
+    renta_fin_total = pmt(tasa_cliente_m, plazo, pv_cliente_total, residual_cliente_total)
+    renta_fondeo_total = pmt(tasa_fondeo_m, plazo, asset_total, residual_fondeador_total)
+
+    movilidad_unit = sum(float(inputs.get(k, 0) or 0) for k in ["gestoria_precio_cliente","seguro_precio_cliente","mantenimiento_precio_cliente","telemetria_precio_cliente"])
+    movilidad_total = movilidad_unit * units
+    costos_unit = sum(float(inputs.get(k, 0) or 0) for k in ["gestoria_costo_empresa","seguro_costo_empresa","mantenimiento_costo_empresa","telemetria_costo_empresa"])
+    costos_total = costos_unit * units
+
+    comision_apertura_total = asset_total * float(inputs["comision_apertura_pct"])
+    deposito_total = (renta_fin_total + movilidad_total) * float(inputs["deposito_rentas"])
+    rentas_anticipadas_total = (renta_fin_total + movilidad_total) * float(inputs.get("rentas_anticipadas", 0) or 0)
+
+    saldo_cliente = pv_cliente_total
+    saldo_fondeo = asset_total
+    rows = []
+    rows.append({
+        "mes": 0,
+        "saldo_cliente_inicial": 0.0,
+        "renta_financiera_cliente": 0.0,
+        "interes_cliente": 0.0,
+        "capital_cliente": 0.0,
+        "saldo_cliente_final": saldo_cliente,
+        "ingreso_movilidad": 0.0,
+        "renta_total_cliente": 0.0,
+        "saldo_fondeo_inicial": 0.0,
+        "renta_fondeador": 0.0,
+        "interes_fondeo": 0.0,
+        "capital_fondeo": 0.0,
+        "saldo_fondeo_final": saldo_fondeo,
+        "costos_operativos": 0.0,
+        "comision_apertura": comision_apertura_total,
+        "deposito_garantia": deposito_total,
+        "rentas_anticipadas": rentas_anticipadas_total,
+        "valor_venta_activo": 0.0,
+        "pago_residual_fondeador": 0.0,
+        "flujo_neto_empresa": -asset_total + enganche_total + comision_apertura_total + deposito_total + rentas_anticipadas_total,
+    })
+    for mes in range(1, plazo + 1):
+        saldo_cliente_ini = saldo_cliente
+        interes_cliente = saldo_cliente_ini * tasa_cliente_m
+        capital_cliente = renta_fin_total - interes_cliente
+        if mes == plazo:
+            capital_cliente = max(0.0, saldo_cliente_ini - residual_cliente_total)
+        saldo_cliente = max(residual_cliente_total, saldo_cliente_ini - capital_cliente)
+
+        saldo_fondeo_ini = saldo_fondeo
+        interes_fondeo = saldo_fondeo_ini * tasa_fondeo_m
+        capital_fondeo = renta_fondeo_total - interes_fondeo
+        if mes == plazo:
+            capital_fondeo = max(0.0, saldo_fondeo_ini - residual_fondeador_total)
+        saldo_fondeo = max(residual_fondeador_total, saldo_fondeo_ini - capital_fondeo)
+
+        venta_activo = valor_venta_cliente_total if mes == plazo else 0.0
+        pago_residual_fondeador = residual_fondeador_total if mes == plazo else 0.0
+        renta_total_cliente = renta_fin_total + movilidad_total
+        flujo_neto = renta_total_cliente - renta_fondeo_total - costos_total + venta_activo - pago_residual_fondeador
+        rows.append({
+            "mes": mes,
+            "saldo_cliente_inicial": saldo_cliente_ini,
+            "renta_financiera_cliente": renta_fin_total,
+            "interes_cliente": interes_cliente,
+            "capital_cliente": capital_cliente,
+            "saldo_cliente_final": saldo_cliente,
+            "ingreso_movilidad": movilidad_total,
+            "renta_total_cliente": renta_total_cliente,
+            "saldo_fondeo_inicial": saldo_fondeo_ini,
+            "renta_fondeador": renta_fondeo_total,
+            "interes_fondeo": interes_fondeo,
+            "capital_fondeo": capital_fondeo,
+            "saldo_fondeo_final": saldo_fondeo,
+            "costos_operativos": costos_total,
+            "comision_apertura": 0.0,
+            "deposito_garantia": 0.0,
+            "rentas_anticipadas": 0.0,
+            "valor_venta_activo": venta_activo,
+            "pago_residual_fondeador": pago_residual_fondeador,
+            "flujo_neto_empresa": flujo_neto,
+        })
+    df = pd.DataFrame(rows)
+    df["flujo_acumulado_empresa"] = df["flujo_neto_empresa"].cumsum()
+    df["plazo"] = plazo
+    return df
+
+
+def recompute_profitability_from_schedule(schedule: pd.DataFrame, asset_total: float) -> Dict[str, Any]:
+    if schedule is None or schedule.empty:
+        return {}
+    cfs = schedule["flujo_neto_empresa"].astype(float).tolist()
+    monthly_irr = irr(cfs)
+    annual_irr = (1 + monthly_irr) ** 12 - 1 if not math.isnan(monthly_irr) else float("nan")
+    monthly_margin = schedule.loc[schedule["mes"] > 0, "flujo_neto_empresa"].mean() if (schedule["mes"] > 0).any() else 0.0
+    return {
+        "tir_anual_tabla": annual_irr,
+        "vpn_12pct_tabla": npv(0.12 / 12, cfs),
+        "breakeven_mes_tabla": breakeven_month(cfs),
+        "flujo_acumulado_final": schedule["flujo_acumulado_empresa"].iloc[-1],
+        "roa_tabla": (monthly_margin * 12) / asset_total if asset_total else float("nan"),
+    }
+
+
+def build_quote_excel(case: Dict[str, Any], quote_rows: pd.DataFrame, schedules: Dict[int, pd.DataFrame]) -> bytes:
+    bio = io.BytesIO()
+    with pd.ExcelWriter(bio, engine="openpyxl") as writer:
+        pd.DataFrame([case]).to_excel(writer, sheet_name="Inputs", index=False)
+        quote_rows.to_excel(writer, sheet_name="Resumen plazos", index=False)
+        for plazo, sched in schedules.items():
+            sched.to_excel(writer, sheet_name=f"Amort_{int(plazo)}m"[:31], index=False)
+    bio.seek(0)
+    return bio.getvalue()
+
+
 def client_summary_markdown(case: Dict[str, Any], quote_rows: pd.DataFrame) -> str:
     lines = [
         f"# Resumen de cotización para firma",
@@ -408,10 +535,17 @@ with tabs[0]:
     }
 
     if st.button("Calcular cotización multi-plazo", type="primary", use_container_width=True):
-        rows = [quote_one(inputs, settings, int(p)) for p in plazos]
+        rows = []
+        schedules = {}
+        for p in plazos:
+            q = quote_one(inputs, settings, int(p))
+            sched = amortization_schedule(inputs, settings, int(p))
+            q.update(recompute_profitability_from_schedule(sched, q["valor_activos_total"]))
+            rows.append(q)
+            schedules[int(p)] = sched.to_dict(orient="records")
         df = pd.DataFrame(rows)
-        st.session_state["last_quote"] = {"case": inputs, "rows": df.to_dict(orient="records"), "created_at": datetime.now().isoformat()}
-        st.success("Cotización calculada. Revisa Resumen cliente y Métricas internas.")
+        st.session_state["last_quote"] = {"case": inputs, "rows": df.to_dict(orient="records"), "schedules": schedules, "created_at": datetime.now().isoformat()}
+        st.success("Cotización calculada con tablas de amortización. Revisa Resumen cliente y Métricas internas.")
 
     if st.session_state["last_quote"]:
         df = pd.DataFrame(st.session_state["last_quote"]["rows"])
@@ -468,13 +602,30 @@ with tabs[2]:
         fig.update_layout(title="Comparativo interno por plazo", xaxis_title="Plazo", yaxis_tickformat=".1%", height=430)
         st.plotly_chart(fig, use_container_width=True)
 
-        internal_cols = ["plazo","valor_activos_total","renta_financiera_unit","ingreso_movilidad_unit","renta_final_unit","renta_fondeador_unit","costos_operativos_unit","margen_mensual_unit","margen_mensual_pct","margen_total_flujos","venta_activos_eol_margen_total","margen_total_operacion","roa","tir_anual","spread_tasas_nominal_bps","breakeven_mes","cumple_margen","cumple_roa","cumple_tir","cumple_politica"]
+        internal_cols = ["plazo","valor_activos_total","renta_financiera_unit","ingreso_movilidad_unit","renta_final_unit","renta_fondeador_unit","costos_operativos_unit","margen_mensual_unit","margen_mensual_pct","margen_total_flujos","venta_activos_eol_margen_total","margen_total_operacion","roa","roa_tabla","tir_anual","tir_anual_tabla","vpn_12pct_tabla","spread_tasas_nominal_bps","breakeven_mes","breakeven_mes_tabla","flujo_acumulado_final","cumple_margen","cumple_roa","cumple_tir","cumple_politica"]
         st.dataframe(df[internal_cols].style.format({
             "valor_activos_total":"${:,.0f}", "renta_financiera_unit":"${:,.0f}", "ingreso_movilidad_unit":"${:,.0f}", "renta_final_unit":"${:,.0f}",
             "renta_fondeador_unit":"${:,.0f}", "costos_operativos_unit":"${:,.0f}", "margen_mensual_unit":"${:,.0f}",
             "margen_mensual_pct":"{:.2%}", "margen_total_flujos":"${:,.0f}", "venta_activos_eol_margen_total":"${:,.0f}",
-            "margen_total_operacion":"${:,.0f}", "roa":"{:.2%}", "tir_anual":"{:.2%}", "spread_tasas_nominal_bps":"{:,.0f}"
+            "margen_total_operacion":"${:,.0f}", "roa":"{:.2%}", "roa_tabla":"{:.2%}", "tir_anual":"{:.2%}", "tir_anual_tabla":"{:.2%}", "vpn_12pct_tabla":"${:,.0f}", "flujo_acumulado_final":"${:,.0f}", "spread_tasas_nominal_bps":"{:,.0f}"
         }), use_container_width=True, hide_index=True)
+
+        st.markdown("### Tabla de amortización y flujos")
+        schedules_raw = st.session_state["last_quote"].get("schedules", {})
+        if schedules_raw:
+            plazo_sel = st.selectbox("Selecciona plazo para ver tabla", sorted([int(k) for k in schedules_raw.keys()]), key="sched_view_plazo")
+            sched_df = pd.DataFrame(schedules_raw.get(str(plazo_sel), schedules_raw.get(plazo_sel, [])))
+            if not sched_df.empty:
+                money_cols = [c for c in sched_df.columns if c not in ["mes", "plazo"]]
+                st.dataframe(sched_df.style.format({c:"${:,.0f}" for c in money_cols}), use_container_width=True, hide_index=True)
+                fig_cf = go.Figure()
+                fig_cf.add_trace(go.Bar(x=sched_df["mes"], y=sched_df["flujo_neto_empresa"], name="Flujo neto mensual"))
+                fig_cf.add_trace(go.Scatter(x=sched_df["mes"], y=sched_df["flujo_acumulado_empresa"], mode="lines+markers", name="Flujo acumulado"))
+                fig_cf.update_layout(title=f"Flujos de rentabilidad - {plazo_sel} meses", xaxis_title="Mes", yaxis_title="MXN", height=430)
+                st.plotly_chart(fig_cf, use_container_width=True)
+            schedules_export = {int(k): pd.DataFrame(v) for k, v in schedules_raw.items()}
+            excel_bytes = build_quote_excel(st.session_state["last_quote"]["case"], df, schedules_export)
+            st.download_button("Descargar Excel con resumen y amortizaciones", data=excel_bytes, file_name="cotizacion_arrendamiento_amortizaciones.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
 
         if st.button("Guardar cotización en historial", use_container_width=True):
             quotes = load_quotes()
@@ -558,13 +709,14 @@ with tabs[4]:
 with tabs[5]:
     st.subheader("Metodología")
     st.markdown("""
-El MVP replica la lógica del archivo base en una UX de asesor:
+El MVP replica la lógica del archivo base en una UX de asesor y calcula tabla de amortización cliente/fondeador por plazo:
 
 - **Inputs comerciales:** producto, moneda, modelo, número de equipos, precio USD, tipo de cambio, plazo, tasa, residual y enganche.
 - **Estructura:** comisión por apertura, depósito, renta anticipada y gracia.
 - **Operativos:** gestoría, seguro, mantenimiento y telemetría como ingresos de movilidad y/o costos.
 - **Fondeo:** institución, costo nominal, residual fondeador y depósito financiero.
-- **KPIs:** renta financiera, ingreso por movilidad, renta final, renta a fondeador, margen mensual, margen %, ROA, TIR económica, spread, margen de venta de activo al final y breakeven.
+- **KPIs:** renta financiera, ingreso por movilidad, renta final, renta a fondeador, margen mensual, margen %, ROA, TIR económica, VPN, spread, margen de venta de activo al final y breakeven.
+- **Amortización:** por cada plazo calcula saldo cliente, interés, capital, saldo fondeador, interés fondeo, capital fondeo, costos, flujo neto y flujo acumulado.
 
 La versión v0.1 deja la configuración en `data/settings.json`. Para producción multiusuario conviene mover la configuración a Supabase con perfiles por rol: asesor, pricing y administrador.
 """)
