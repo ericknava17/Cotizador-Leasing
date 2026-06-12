@@ -1,0 +1,95 @@
+{
+  "fx_usd_mxn": 17.35,
+  "iva_pct": 0.16,
+  "catalog_units": [
+    {
+      "modelo": "CAJA SECA-53",
+      "tipo_unidad": "Remolque",
+      "clasificacion": "Caja seca",
+      "moneda": "USD",
+      "precio_usd_sin_iva": 41650,
+      "residual_cliente_pct": 0.001,
+      "residual_fondeador_pct": 0.001
+    },
+    {
+      "modelo": "TRACTO DIESEL",
+      "tipo_unidad": "Tractocamión",
+      "clasificacion": "Tracto",
+      "moneda": "USD",
+      "precio_usd_sin_iva": 115000,
+      "residual_cliente_pct": 0.1,
+      "residual_fondeador_pct": 0.05
+    },
+    {
+      "modelo": "DOLLY",
+      "tipo_unidad": "Dolly",
+      "clasificacion": "Dolly",
+      "moneda": "USD",
+      "precio_usd_sin_iva": 18500,
+      "residual_cliente_pct": 0.05,
+      "residual_fondeador_pct": 0.03
+    }
+  ],
+  "funding": [
+    {
+      "institucion": "Traton",
+      "costo_fondeo_nominal_pct": 0.093,
+      "ratificacion_mxn": 5000,
+      "opcion_compra_pct": 0.001,
+      "comision_apertura_pct": 0.0,
+      "deposito_rentas": 1
+    },
+    {
+      "institucion": "Banco Base",
+      "costo_fondeo_nominal_pct": 0.115,
+      "ratificacion_mxn": 6000,
+      "opcion_compra_pct": 0.001,
+      "comision_apertura_pct": 0.01,
+      "deposito_rentas": 1
+    },
+    {
+      "institucion": "Fondeador Interno",
+      "costo_fondeo_nominal_pct": 0.15,
+      "ratificacion_mxn": 0,
+      "opcion_compra_pct": 0.001,
+      "comision_apertura_pct": 0.0,
+      "deposito_rentas": 0
+    }
+  ],
+  "policy": {
+    "margen_mensual_min_pct": 0.055,
+    "roa_min_pct": 0.055,
+    "tir_min_pct": 0.18,
+    "enganche_min_pct": 0.0,
+    "deposito_min_rentas": 1,
+    "plazos_permitidos": [
+      12,
+      18,
+      24,
+      36,
+      48,
+      60
+    ],
+    "plazos_default": [
+      24,
+      36,
+      48
+    ]
+  },
+  "operational_defaults": {
+    "gestoria_propietario": "Propio",
+    "gestoria_costo_mxn": 669.66,
+    "gestoria_markup_pct": 0.0303736224,
+    "seguro_propietario": "Cliente",
+    "seguro_anual_sin_iva_mxn": 0,
+    "seguro_markup_pct": 0.0,
+    "mantenimiento_incluido": "No",
+    "mantenimiento_costo_km": 0,
+    "km_estimado_mes": 0,
+    "mantenimiento_markup_pct": 0.0,
+    "telemetria_propietario": "Propio",
+    "telemetria_dispositivo": "SAMSARA-AT11",
+    "telemetria_precio_cliente_mxn": 250,
+    "telemetria_costo_minimo_mxn": 214.5
+  }
+}
