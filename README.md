@@ -1,18 +1,15 @@
-# Lease Quote Builder v0.2
+# Lease Quote Builder v0.5
 
-Cotizador de arrendamiento separado de Credit Pulse Monitor.
+App de cotización de arrendamiento con UX por roles.
 
-## Incluye
-- Cotización multi-plazo.
-- Resumen cliente para firma.
-- Métricas internas.
-- Configuración editable y guardable:
-  - tipo de cambio
-  - catálogo de unidades
-  - fondeadores
-  - límites de rentabilidad por política
-  - operativos default
-- Historial local.
+## Roles
+- Asesor comercial: cotiza cliente, accesorios, condiciones comerciales y servicios incluidos.
+- Finanzas / Pricing: administra fondeo, catálogos, TC, política y defaults operativos.
+
+## Métricas compartidas
+- TIR
+- ROA
+- Margen %
 
 ## Ejecutar
 ```bash
@@ -21,13 +18,4 @@ streamlit run app.py
 ```
 
 ## Producción
-En Streamlit Cloud, los cambios en archivos locales pueden reiniciarse al redeploy. Para producción multiusuario se recomienda migrar `data/settings.json` y `data/quotes.json` a Supabase.
-
-
-## v0.2
-- Agrega tabla de amortización por plazo.
-- Calcula saldo cliente, interés, capital y saldo final.
-- Calcula tabla espejo de fondeo: saldo fondeador, interés, capital y saldo final.
-- Calcula flujo mensual de rentabilidad: renta cliente - renta fondeador - costos + salida final.
-- Recalcula TIR, ROA, VPN 12% y breakeven desde la tabla de flujos.
-- Permite ver amortización por plazo y descargar Excel con hojas por plazo.
+Para operación multiusuario real conviene mover configuración e historial a Supabase.

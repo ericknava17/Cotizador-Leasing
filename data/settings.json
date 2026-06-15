@@ -9,7 +9,10 @@
       "moneda": "USD",
       "precio_usd_sin_iva": 41650,
       "residual_cliente_pct": 0.001,
-      "residual_fondeador_pct": 0.001
+      "residual_fondeador_pct": 0.001,
+      "valor_venta_pct_default": 0.0443,
+      "fondeador_default": "Traton",
+      "activo": true
     },
     {
       "modelo": "TRACTO DIESEL",
@@ -18,7 +21,10 @@
       "moneda": "USD",
       "precio_usd_sin_iva": 115000,
       "residual_cliente_pct": 0.1,
-      "residual_fondeador_pct": 0.05
+      "residual_fondeador_pct": 0.05,
+      "valor_venta_pct_default": 0.12,
+      "fondeador_default": "Banco Base",
+      "activo": true
     },
     {
       "modelo": "DOLLY",
@@ -27,33 +33,42 @@
       "moneda": "USD",
       "precio_usd_sin_iva": 18500,
       "residual_cliente_pct": 0.05,
-      "residual_fondeador_pct": 0.03
+      "residual_fondeador_pct": 0.03,
+      "valor_venta_pct_default": 0.08,
+      "fondeador_default": "Fondeador Interno",
+      "activo": true
     }
   ],
   "funding": [
     {
       "institucion": "Traton",
       "costo_fondeo_nominal_pct": 0.093,
+      "residual_fondeador_pct_default": 0.001,
+      "aforo_pct": 1.0,
+      "comision_apertura_pct_default": 0.015,
+      "deposito_rentas_default": 2,
       "ratificacion_mxn": 5000,
-      "opcion_compra_pct": 0.001,
-      "comision_apertura_pct": 0.0,
-      "deposito_rentas": 1
+      "activo": true
     },
     {
       "institucion": "Banco Base",
       "costo_fondeo_nominal_pct": 0.115,
+      "residual_fondeador_pct_default": 0.05,
+      "aforo_pct": 1.0,
+      "comision_apertura_pct_default": 0.015,
+      "deposito_rentas_default": 2,
       "ratificacion_mxn": 6000,
-      "opcion_compra_pct": 0.001,
-      "comision_apertura_pct": 0.01,
-      "deposito_rentas": 1
+      "activo": true
     },
     {
       "institucion": "Fondeador Interno",
       "costo_fondeo_nominal_pct": 0.15,
+      "residual_fondeador_pct_default": 0.03,
+      "aforo_pct": 1.0,
+      "comision_apertura_pct_default": 0.0,
+      "deposito_rentas_default": 0,
       "ratificacion_mxn": 0,
-      "opcion_compra_pct": 0.001,
-      "comision_apertura_pct": 0.0,
-      "deposito_rentas": 0
+      "activo": true
     }
   ],
   "policy": {
@@ -71,24 +86,20 @@
       60
     ],
     "plazos_default": [
-      24,
       36,
-      48
-    ]
+      48,
+      60
+    ],
+    "vpn_discount_pct": 0.12
   },
   "operational_defaults": {
-    "gestoria_propietario": "Propio",
     "gestoria_costo_mxn": 669.66,
     "gestoria_markup_pct": 0.0303736224,
-    "seguro_propietario": "Cliente",
     "seguro_anual_sin_iva_mxn": 0,
     "seguro_markup_pct": 0.0,
-    "mantenimiento_incluido": "No",
     "mantenimiento_costo_km": 0,
     "km_estimado_mes": 0,
     "mantenimiento_markup_pct": 0.0,
-    "telemetria_propietario": "Propio",
-    "telemetria_dispositivo": "SAMSARA-AT11",
     "telemetria_precio_cliente_mxn": 250,
     "telemetria_costo_minimo_mxn": 214.5
   }
